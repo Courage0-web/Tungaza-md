@@ -1,0 +1,38 @@
+async function startBot() {
+    console.log(`${botName} iri kutanga...`)
+
+    const { state, saveCreds } = await useMultiFileAuthState('session')
+    const sock = makeWASocket({
+        auth: state,
+        logger: pino({ level: 'silent' }),
+        printQRInTerminal: false  // Dzima QR code
+    })
+
+    sock.ev.on('creds.update', saveCreds)
+
+    // PAIR CODE PART - Namira izvi
+    if (!sock.authState.creds.registered) {
+        const phoneNumber = process.env.OWNER_NUMBER
+        if (!phoneNumber) {
+            console.log('❌ Isa OWNER_NUMBER mu .env kutanga')
+            process.exit()
+        }
+        setTimeout(async () => {
+            const code = await sock.requestPairingCode(phoneNumber.replace(/[^0-9]/g, ''))
+            console.log('\n=== PAIR CODE YAKO ===')
+            console.log(`Code: ${code.match(/.{1,4}/g).join('-')}`)
+            console.log('Enda ku WhatsApp > Settings > Linked Devices > Link with phone number')
+            console.log('Namira code iri pamusoro')
+            console.log('=======================\n')
+        }, 3000)
+    }
+
+    sock.ev.on('connection.update', (update) => {
+        const { connection } = update
+        if(connection === 'open') {
+            console.log(`✅ ${botName} YABATANA NEPair Code!`)
+        }
+    })
+
+    // ...zvasara zve messages.upsert siya sezvazviri
+}
